@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Firmament</title>
+    <link rel="icon" href="/ui/logo.png">
+    <link rel="stylesheet" href="/ui/style.css">
+</head>
+<body>
+<header class="bar">
+    <div class="brand"><img src="/ui/logo.png" alt=""><span>Firmament</span></div>
+    <div id="status" class="status" data-state="checking"><span class="dot"></span><span id="status-text" data-i18n="status.checking">Checking ComfyUI...</span></div>
+    <div class="tools">
+        <button id="phone" class="ghost" data-i18n="phone.button">Open on your phone</button>
+        <select id="lang" aria-label="Language"></select>
+    </div>
+</header>
+
+<main class="layout">
+    <aside class="panel">
+        <label for="scene" data-i18n="form.scene">Describe the sky and the world around you</label>
+        <textarea id="scene" rows="5" data-i18n-ph="form.scene_ph" placeholder="a red desert at dusk with two moons over jagged mesas"></textarea>
+        <div class="chips" id="presets"></div>
+
+        <div class="row">
+            <div>
+                <label for="style" data-i18n="form.style">Style</label>
+                <select id="style">
+                    <option value="photo" data-i18n="style.photo">Photo</option>
+                    <option value="painting" data-i18n="style.painting">Matte painting</option>
+                    <option value="game" data-i18n="style.game">Game art</option>
+                    <option value="anime" data-i18n="style.anime">Anime</option>
+                </select>
+            </div>
+            <div>
+                <label for="size" data-i18n="form.size">Size</label>
+                <select id="size">
+                    <option value="2048" data-i18n="size.full">2048 × 1024</option>
+                    <option value="1024" data-i18n="size.draft">1024 × 512 (quick draft)</option>
+                </select>
+            </div>
+        </div>
+        <div class="row">
+            <div>
+                <label for="steps" data-i18n="form.steps">Steps</label>
+                <input id="steps" type="number" min="4" max="30" value="10">
+            </div>
+            <div>
+                <label for="seed" data-i18n="form.seed">Seed</label>
+                <input id="seed" type="number" min="0" data-i18n-ph="form.seed_ph" placeholder="random">
+            </div>
+        </div>
+        <button id="generate" class="primary" data-i18n="form.generate">Generate skybox</button>
+        <p id="form-error" class="error" hidden></p>
+
+        <h2 data-i18n="jobs.title">Jobs</h2>
+        <div id="jobs" class="jobs"><p class="dim" data-i18n="jobs.none">Nothing running.</p></div>
+    </aside>
+
+    <section class="stage">
+        <div class="view">
+            <canvas id="viewer"></canvas>
+            <div id="empty" class="empty" data-i18n="view.empty">Your skyboxes appear here. Drag to look round.</div>
+            <div class="view-tools">
+                <button id="mode" class="ghost" data-i18n="view.flat">Flat</button>
+                <button id="spin" class="ghost" data-i18n="view.spin">Turn</button>
+                <button id="full" class="ghost" data-i18n="view.full">Full screen</button>
+            </div>
+        </div>
+        <div id="details" class="details" hidden>
+            <div class="info">
+                <p id="d-scene" class="scene"></p>
+                <p id="d-meta" class="dim"></p>
+            </div>
+            <div class="actions">
+                <button id="a-seam" class="ghost" data-i18n="act.seam">Fix seam</button>
+                <button id="a-up2" class="ghost" data-i18n="act.up2">Upscale 2×</button>
+                <button id="a-up4" class="ghost" data-i18n="act.up4">Upscale 4×</button>
+                <button id="a-again" class="ghost" data-i18n="act.again">Same prompt</button>
+                <a id="a-pano" class="button" data-i18n="act.pano">Panorama</a>
+                <a id="a-cube" class="button" data-i18n="act.cube">Cube faces</a>
+                <a id="a-cross" class="button" data-i18n="act.cross">Cross</a>
+                <button id="a-delete" class="ghost danger" data-i18n="act.delete">Delete</button>
+            </div>
+        </div>
+        <h2 data-i18n="gallery.title">Your skyboxes</h2>
+        <div id="gallery" class="gallery"></div>
+    </section>
+</main>
+
+<dialog id="phone-box">
+    <h2 data-i18n="phone.title">Open Firmament on your phone</h2>
+    <p class="dim" data-i18n="phone.how">Scan this with your phone's camera. The phone has to be on the same WiFi.</p>
+    <div id="qr" class="qr"></div>
+    <p id="phone-url" class="url"></p>
+    <form method="dialog"><button class="primary" data-i18n="phone.close">Close</button></form>
+</dialog>
+
+<footer class="foot">Farica☆Kimora © Cursed Entertainment</footer>
+<script type="module" src="/ui/app.js"></script>
+</body>
+</html>

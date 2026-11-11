@@ -1,0 +1,12 @@
+Firmament
+Copyright (c) 2026 Cursed Entertainment. MIT License (see LICENSE).
+
+Firmament doesn't ship any model: it drives a ComfyUI on your PC, which loads these (downloaded separately):
+- Krea 2 Turbo (krea2_turbo_bf16-Q4_0.gguf), its text encoder (qwen3vl_4b_fp8_scaled) and the Wan 2.1 VAE:
+  Krea 2 Community License Agreement, https://huggingface.co/Comfy-Org/Krea-2
+- Krea-2 360 ERP LoRA (krea2_t2i_360_erp_lora_v1.safetensors) by mickmumpitz, under the Krea 2 Community License:
+  https://huggingface.co/mickmumpitz/Krea2-360-ERP-LoRAs. Firmament uses its prompt template.
+- 4x-UltraSharp V2 Lite (upscaling), by Kim2091.
+
+Python packages: Flask and Waitress (BSD-3-Clause), NumPy (BSD-3-Clause), Pillow (MIT-CMU),
+websocket-client (Apache-2.0), segno (BSD-3-Clause).

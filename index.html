@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Firmament - 360° skyboxes from a prompt</title>
+  <meta name="description" content="Firmament: 360-degree skyboxes from a text prompt, on your own GPU. Krea 2 Turbo with a 360 panorama LoRA through ComfyUI, seam repair, upscaling, cube map export and a 360 viewer.">
+  <link rel="icon" href="site/favicon.ico">
+  <link rel="stylesheet" href="site/style.css">
+</head>
+
+<body>
+  <header class="top">
+    <img class="logo" src="site/logo.png" alt="Firmament">
+    <div>
+      <h1>Firmament</h1>
+      <p class="tag">360° skyboxes from a prompt, made on your own GPU.</p>
+    </div>
+  </header>
+
+  <main>
+    <section class="sky">
+      <canvas id="sky" aria-label="A skybox made with Firmament: drag to look round"></canvas>
+      <p class="hint">A skybox Firmament made: drag to look round.</p>
+    </section>
+
+    <section class="actions">
+      <a class="btn" href="https://github.com/CursedPrograms/Firmament">Get it on GitHub</a>
+      <a class="btn quiet" href="https://github.com/CursedPrograms/Firmament#setup">How to set it up</a>
+    </section>
+
+    <section class="grid">
+      <article>
+        <h2>Describe it, look round it</h2>
+        <p>Write a scene, or pick one: space, an ocean sunset, mountains, an alien desert. Firmament paints the whole
+          sphere round you in one 2048 × 1024 panorama, and shows it in a 360° view you drag to look round.</p>
+      </article>
+      <article>
+        <h2>Made for 360°</h2>
+        <p>Krea 2 Turbo with a LoRA trained on equirectangular panoramas: a level horizon, the sky and the ground at
+          the poles, and left and right edges that meet.</p>
+      </article>
+      <article>
+        <h2>Seam repair</h2>
+        <p>Fix seam turns the panorama half way round and repaints a band across the join, then blends it back in, so
+          the wrap disappears. Every skybox gets a seam score.</p>
+      </article>
+      <article>
+        <h2>Upscale to 8K</h2>
+        <p>2× or 4× with 4x-UltraSharp, padded with the opposite edge first so the upscaled panorama still wraps
+          without a seam.</p>
+      </article>
+      <article>
+        <h2>Ready for engines</h2>
+        <p>Download the panorama (Unity, Unreal, Godot and Blender take it as it is), six cube faces in a zip, or a
+          cross layout.</p>
+      </article>
+      <article>
+        <h2>On your phone too</h2>
+        <p>Firmament prints a QR code when it starts: scan it and the whole studio opens on your phone over WiFi,
+          360° view included.</p>
+      </article>
+    </section>
+  </main>
+
+  <footer>
+    <p>360° LoRA by <a href="https://huggingface.co/mickmumpitz/Krea2-360-ERP-LoRAs">mickmumpitz</a>, on
+      <a href="https://huggingface.co/Comfy-Org/Krea-2">Krea 2</a>.</p>
+    <p><a href="https://farica-kimora.github.io/FaricaKimora/">Farica☆Kimora</a> &copy;
+      <a href="https://cursed-entertainment.itch.io/">Cursed Entertainment</a> <span id="year">2026</span></p>
+  </footer>
+  <script type="module" src="site/site.js"></script>
+</body>
+
+</html>

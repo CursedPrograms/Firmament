@@ -1,0 +1,6 @@
+flask==3.0.3
+waitress==3.0.2
+numpy
+pillow
+websocket-client==1.8.0
+segno==1.6.1
