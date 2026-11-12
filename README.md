@@ -31,7 +31,9 @@
 the whole sphere round you as an equirectangular panorama, shows it in a 360° view you drag to look round, repairs
 the seam, upscales it to 8K and exports it for game engines. It runs Krea 2 Turbo with a 360° panorama LoRA through
 [ComfyUI](https://github.com/comfyanonymous/ComfyUI), and opens on your phone too.
-**[Website](https://cursedprograms.github.io/Firmament/)**
+It comes two ways: a **desktop app for Windows in C++** (no Python, no ComfyUI: download, unzip, describe a sky)
+and the original **web app** on ComfyUI that opens on your phone too. Part of
+**[Atelier](https://github.com/CursedPrograms/Atelier)**. **[Website](https://cursedprograms.github.io/Firmament/)**
 
 ![Firmament: a mountain skybox above a sea of clouds in the 360 view, with the gallery below](images/window.jpg)
 
@@ -57,7 +59,33 @@ the seam, upscales it to 8K and exports it for game engines. It runs Krea 2 Turb
 - **12 languages:** English, Japanese, Chinese, Spanish, Korean, French, German, Russian, Serbian, Afrikaans, Yucatec
   Maya and Pennsylvania Dutch (Deitsch).
 
-## Setup
+## The desktop app (C++)
+
+![Firmament's desktop app: the prompt, the styles and a desert skybox in its 360 view](images/app.jpg)
+
+Download **Firmament-win64.zip** from [Releases](https://github.com/CursedPrograms/Firmament/releases), unzip it anywhere
+and run `Firmament.exe` (or `install.bat` for Start menu and Desktop shortcuts), or get it through the
+[Atelier launcher](https://github.com/CursedPrograms/Atelier). The first time, open the **Models** tab and press
+**Get the models** (about 12 GB; downloads carry on where they stopped). It needs an NVIDIA graphics card; on an
+RTX 2060 (6 GB) a 1024 x 512 draft takes one to five minutes.
+
+- **The same skies, without Python:** Krea 2 Turbo and the 360° LoRA run by
+  [stable-diffusion.cpp](https://github.com/leejet/stable-diffusion.cpp) (CUDA), the model kept loaded between skies, the
+  left and right edges joined as it paints, so a seam is rare.
+- **Every setting a slider:** size, steps, guidance, the LoRA's strength, shift, sampler and schedule; lock the seed to
+  try small changes to the words.
+- **The rest of Firmament:** the eight scenes and four styles, a 360° view (drag, zoom, turn, flat), the gallery,
+  the seam score and repair, 2x / 4x Real-ESRGAN upscaling (photo or art), and the panorama PNG, the six cube faces
+  in a zip and the cross.
+- Skies are kept in `Pictures\Firmament` (or `Firmament` in your user folder when Windows guards Pictures), each with
+  a text file of how it was made.
+
+Build it: Visual Studio 2022, CMake, the CUDA 12 toolkit, and stable-diffusion.cpp built as a shared library with CUDA
+(`cmake -DSD_CUDA=ON -DSD_BUILD_SHARED_LIBS=ON -DCMAKE_CUDA_RUNTIME_LIBRARY=Shared`), then `cpp\build.bat` with `SDCPP`
+pointing at it. The code is in `cpp/src/`: `engine.cpp` (stable-diffusion.cpp), `pano.cpp` (the panorama maths, ported
+from `firmament/skybox.py`), `viewer.cpp` (the 360° view), `gui.cpp` (the window), `splash.cpp`.
+
+## The web app: setup
 
 1. **ComfyUI** with [ComfyUI-GGUF](https://github.com/city96/ComfyUI-GGUF) (for the GGUF model). Firmament looks
    for it in `C:\cc\ComfyUI` (set `COMFYUI_DIR` for another folder) and starts it when it isn't running.

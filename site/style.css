@@ -98,3 +98,7 @@ footer p { margin: 4px 0; }
   border-radius: 6px; background: var(--panel); touch-action: none; cursor: grab; }
 .sky canvas:active { cursor: grabbing; }
 .hint { color: var(--dim); font-size: 14px; margin: 6px 0 0; text-align: center; }
+
+/* a screenshot of the desktop app */
+.shot { max-width: 1100px; margin: 24px auto; }
+.shot img { width: 100%; display: block; border: 1px solid var(--line); }

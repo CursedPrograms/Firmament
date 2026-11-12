@@ -5,7 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Firmament - 360° skyboxes from a prompt</title>
-  <meta name="description" content="Firmament: 360-degree skyboxes from a text prompt, on your own GPU. Krea 2 Turbo with a 360 panorama LoRA through ComfyUI, seam repair, upscaling, cube map export and a 360 viewer.">
+  <meta name="description" content="Firmament: 360-degree skyboxes from a text prompt, on your own GPU. A desktop app in C++ (stable-diffusion.cpp, no Python) and a web app on ComfyUI: Krea 2 Turbo with a 360 panorama LoRA, seam repair, upscaling, cube map export and a 360 viewer. Part of Atelier.">
   <link rel="icon" href="site/favicon.ico">
   <link rel="stylesheet" href="site/style.css">
 </head>
@@ -26,11 +26,26 @@
     </section>
 
     <section class="actions">
-      <a class="btn" href="https://github.com/CursedPrograms/Firmament">Get it on GitHub</a>
-      <a class="btn quiet" href="https://github.com/CursedPrograms/Firmament#setup">How to set it up</a>
+      <a class="btn" href="https://github.com/CursedPrograms/Firmament/releases">Download the app</a>
+      <a class="btn quiet" href="https://github.com/CursedPrograms/Firmament">Get it on GitHub</a>
+    </section>
+
+    <section class="shot">
+      <img src="images/app.jpg" alt="Firmament's desktop app: the prompt, the styles and a desert skybox in its 360 view">
     </section>
 
     <section class="grid">
+      <article>
+        <h2>A desktop app</h2>
+        <p>Firmament for Windows, in C++: no Python, no ComfyUI. Unzip it, get the models in one click, describe a sky.
+          The painter is stable-diffusion.cpp on your NVIDIA card. Part of
+          <a href="https://github.com/CursedPrograms/Atelier">Atelier</a>.</p>
+      </article>
+      <article>
+        <h2>Every setting a slider</h2>
+        <p>Size, steps, guidance, the 360° LoRA's strength, shift, sampler and schedule, the seam repair's strength and
+          band, the cube faces' size. Lock the seed to try small changes to the words.</p>
+      </article>
       <article>
         <h2>Describe it, look round it</h2>
         <p>Write a scene, or pick one: space, an ocean sunset, mountains, an alien desert. Firmament paints the whole
@@ -48,8 +63,8 @@
       </article>
       <article>
         <h2>Upscale to 8K</h2>
-        <p>2× or 4× with 4x-UltraSharp, padded with the opposite edge first so the upscaled panorama still wraps
-          without a seam.</p>
+        <p>2× or 4× (Real-ESRGAN in the app, 4x-UltraSharp on ComfyUI), padded with the opposite edge first so the
+          upscaled panorama still wraps without a seam.</p>
       </article>
       <article>
         <h2>Ready for engines</h2>
@@ -58,7 +73,7 @@
       </article>
       <article>
         <h2>On your phone too</h2>
-        <p>Firmament prints a QR code when it starts: scan it and the whole studio opens on your phone over WiFi,
+        <p>The web app prints a QR code when it starts: scan it and the whole studio opens on your phone over WiFi,
           360° view included.</p>
       </article>
     </section>

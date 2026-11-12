@@ -5,6 +5,7 @@
 //
 //   Firmament [panorama.png]
 //   Firmament --capture out.bmp [--make "scene"] [--width N] [--steps N]   a screenshot, then quit (after the skybox)
+//   Firmament --capture out.bmp --try-tools        repair the newest sky's seam, upscale it 2x, export its cube faces
 #include "engine.h"
 #include "http.h"
 #include "pano.h"
@@ -668,6 +669,7 @@ static void frame() {
 
 int main(int argc, char** argv) {
     std::string capture, file, makeScene;
+    int tools = 0;   // --try-tools: 1 seam, 2 upscale, 3 export, 4 done
     std::vector<std::string> args;
 #ifdef _WIN32
     { int n; LPWSTR* wa = CommandLineToArgvW(GetCommandLineW(), &n); if (wa) { for (int i = 1; i < n; ++i) args.push_back(fs::path(wa[i]).u8string()); LocalFree(wa); } }
@@ -681,6 +683,7 @@ int main(int argc, char** argv) {
         else if (args[i] == "--width" && i + 1 < args.size()) settings.width = atoi(args[++i].c_str()) / 64 * 64;
         else if (args[i] == "--steps" && i + 1 < args.size()) settings.steps = atoi(args[++i].c_str());
         else if (args[i] == "--tab" && i + 1 < args.size()) forcedTab = atoi(args[++i].c_str());
+        else if (args[i] == "--try-tools") tools = 1;
         else file = args[i];
     }
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) != 0) return 1;
@@ -770,13 +773,28 @@ int main(int argc, char** argv) {
             }
         }
         ImGui_ImplOpenGL3_NewFrame(); ImGui_ImplSDL2_NewFrame(); ImGui::NewFrame();
+        if (tools && !busy && current >= 0) {
+            if (tools == 1) { fixSeam(); tools = 2; }
+            else if (tools == 2) { upscaleCurrent(2); tools = 3; }
+            else if (tools == 3) {
+                const Skybox& c = gallery[current];
+                const std::string base = fs::u8path(c.path).replace_extension().u8string();
+                auto f = Pano::cubeFaces(c.img, c.img.w / 4);
+                std::vector<std::pair<std::string, std::string>> files;
+                for (const char* n : {"px", "nx", "py", "ny", "pz", "nz"}) files.push_back({std::string(n) + ".png", Pano::pngBytes(f[n])});
+                Pano::saveZip(base + "_cube.zip", files);
+                Pano::savePng(Pano::cross(f), base + "_cross.png");
+                say("Tools tried: seam, 2x, cube faces and cross saved");
+                tools = 4;
+            }
+        }
         frame();
         ImGui::Render();
         int w, h; SDL_GL_GetDrawableSize(window, &w, &h);
         glViewport(0, 0, w, h); glClearColor(0.1f, 0.1f, 0.1f, 1); glClear(GL_COLOR_BUFFER_BIT);
         ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
         ++frames;
-        if (!capture.empty() && frames >= 30 && !busy && (makeScene.empty() || frames > 60)) {
+        if (!capture.empty() && frames >= 30 && !busy && (makeScene.empty() || frames > 60) && (tools == 0 || tools == 4)) {
             std::vector<unsigned char> px((size_t)w * h * 4);
             glReadPixels(0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, px.data());
             std::vector<unsigned char> flip(px.size());
