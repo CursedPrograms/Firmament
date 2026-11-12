@@ -6,3 +6,9 @@ venv/
 
 # what Firmament makes: your skyboxes stay on your PC
 output/
+
+# the C++ app's build
+cpp/build/
+cpp/build-pkg/
+cpp/external/
+cpp/dist/
