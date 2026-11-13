@@ -1,7 +1,7 @@
 /* Firmament: Changeling greys + Cursed pink, solid colours, no gradients or shadows. */
 :root {
     --bg: #1a1a1a; --panel: #212121; --panel2: #242424; --line: #333; --line2: #3a3a3a;
-    --text: #d6d6d6; --dim: #9a9a9a; --pink: #e0408a; --pink-dark: #c2186b; --bad: #e05050; --good: #4caf7a;
+    --text: #d6d6d6; --dim: #9a9a9a; --pink: #007bb7; --pink-dark: #005184; --bad: #e05050; --good: #4caf7a;
 }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }

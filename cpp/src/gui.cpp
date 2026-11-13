@@ -60,8 +60,8 @@ namespace fs = std::filesystem;
 // ---------- the Atelier look ----------
 static const ImU32 C_BG = IM_COL32(0x1a, 0x1a, 0x1a, 255), C_PANEL = IM_COL32(0x24, 0x24, 0x24, 255),
                    C_LINE = IM_COL32(0x3a, 0x3a, 0x3a, 255), C_TEXT = IM_COL32(0xe6, 0xe6, 0xe6, 255),
-                   C_DIM = IM_COL32(0x9a, 0x9a, 0x9a, 255), C_PINK = IM_COL32(0xe0, 0x40, 0x8a, 255),
-                   C_DEEP = IM_COL32(0xc2, 0x18, 0x6b, 255), C_WELL = IM_COL32(0x14, 0x14, 0x14, 255);
+                   C_DIM = IM_COL32(0x9a, 0x9a, 0x9a, 255), C_PINK = IM_COL32(0x00, 0x7b, 0xb7, 255),
+                   C_DEEP = IM_COL32(0x00, 0x51, 0x84, 255), C_WELL = IM_COL32(0x14, 0x14, 0x14, 255);
 static ImVec4 col4(ImU32 c) { return ImGui::ColorConvertU32ToFloat4(c); }
 
 static void applyStyle() {
@@ -194,7 +194,14 @@ static std::mutex mtx;
 static std::vector<std::function<void()>> onMain;
 static std::deque<std::string> logLines;
 static void post(std::function<void()> f) { std::lock_guard<std::mutex> g(mtx); onMain.push_back(std::move(f)); }
-static void logLine(const std::string& s) { std::lock_guard<std::mutex> g(mtx); logLines.push_back(s); if (logLines.size() > 2000) logLines.pop_front(); }
+static std::string outputDir();
+// the log is kept in firmament.log too (in the output folder), so a failed picture can be looked into after closing
+static FILE* logFile = nullptr;
+static void logLine(const std::string& s) {
+    std::lock_guard<std::mutex> g(mtx); logLines.push_back(s); if (logLines.size() > 2000) logLines.pop_front();
+    if (!logFile) logFile = _wfopen((fs::u8path(outputDir()) / "firmament.log").wstring().c_str(), L"ab");
+    if (logFile) { fprintf(logFile, "%s\n", s.c_str()); fflush(logFile); }
+}
 static std::string toast; static double toastUntil = 0;
 static double now() { return SDL_GetTicks() / 1000.0; }
 static void say(const std::string& s) { std::lock_guard<std::mutex> g(mtx); toast = s; toastUntil = now() + 7; }
@@ -205,7 +212,7 @@ static void runJob(std::function<void()> f) {
     if (busy) return;
     if (job.joinable()) job.join();
     busy = true; jobStart = std::chrono::steady_clock::now();
-    job = std::thread([f] { f(); busy = false; });
+    job = std::thread([f] { f(); post([] { busy = false; }); });   // not busy once what the job posted is in
 }
 
 static std::string slug(const std::string& s) {
@@ -297,10 +304,11 @@ static void makeSkybox() {
     s.seed = lockSeed ? lockedSeed : -1;
     const std::string scn = scene; const int sty = style;
     { std::lock_guard<std::mutex> g(mtx); logLines.clear(); }
+    logLine("---- " + s.prompt + " (" + std::to_string(s.width) + " wide, " + std::to_string(s.steps) + " steps" + (s.offload ? ", offload" : "") + ")");
     runJob([s, scn, sty] {
         Image out; int64_t seed = 0;
         const std::string err = Engine::generate(models, s, out, seed, progress);
-        if (!err.empty()) { say(err); return; }
+        if (!err.empty()) { logLine("FAILED: " + err); say(err); return; }
         post([out = std::move(out), scn, sty, seed, s]() mutable {
             if (lockSeed) lockedSeed = seed;
             addSkybox(std::move(out), scn, sty, seed, s.steps, s.prompt, "");

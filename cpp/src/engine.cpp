@@ -1,5 +1,6 @@
 // Firmament - the engine (see engine.h), on stable-diffusion.cpp's C API
 #include "engine.h"
+#include "pano.h"
 
 #include <stable-diffusion.h>
 
@@ -98,7 +99,9 @@ static sd_ctx_t* ctx = nullptr;
 static std::string loadedKey;
 static Progress* current = nullptr;
 
+static std::atomic<bool> shortOfMemory{false};   // the card couldn't give a step what it needed
 static void onLog(enum sd_log_level_t level, const char* text, void*) {
+    if (text && strstr(text, "cannot make enough memory")) shortOfMemory = true;
     if (level < SD_LOG_INFO || !logFn || !text) return;
     std::string s(text);
     while (!s.empty() && (s.back() == '\n' || s.back() == '\r')) s.pop_back();
@@ -178,8 +181,29 @@ static std::string run(const Models& m, const Settings& s, const Image* init, co
     return err;
 }
 
+std::string upscale(const std::string& model, const Image& in, int scale, Image& out, Progress& p);
 std::string generate(const Models& m, const Settings& s, Image& out, int64_t& seedUsed, Progress& p) {
-    return run(m, s, nullptr, nullptr, 1, out, &seedUsed, p);
+    // the width asked for first; when the graphics card hasn't the memory for it (6 GB cards, or other programs
+    // holding some), smaller ones, and the picture scaled up to the width asked for afterwards
+    Settings t = s;
+    for (;;) {
+        shortOfMemory = false;
+        std::string err = run(m, t, nullptr, nullptr, 1, out, &seedUsed, p);
+        if (err.empty() || p.cancel || !shortOfMemory || t.width <= 768) {
+            if (!err.empty() && shortOfMemory)
+                err = "The graphics card hasn't enough memory free, even for a small sky: close other programs that use it and try again";
+            if (err.empty() && t.width != s.width) {
+                // sharpened by the upscaler when it's there (4x, then down to the width asked for), else just scaled
+                std::error_code ec; Image big;
+                if (fs::exists(fs::u8path(m.upscaler), ec) && upscale(m.upscaler, out, 4, big, p).empty()) out = std::move(big);
+                out = Pano::resize(out, s.width, s.width / 2);
+                if (logFn) logFn("Painted at " + std::to_string(t.width) + " wide (the card's memory) and scaled up to " + std::to_string(s.width));
+            }
+            return err;
+        }
+        t.width = std::max(768, (t.width - 256) / 64 * 64);
+        if (logFn) logFn("Not enough graphics memory: trying " + std::to_string(t.width) + " wide");
+    }
 }
 
 std::string repaint(const Models& m, const Settings& s, const Image& in, const Image& mask, float strength, Image& out, Progress& p) {
