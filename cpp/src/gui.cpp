@@ -418,6 +418,17 @@ static void fetchMissing() {
 
 // ---------- the window ----------
 static bool showAbout = false;
+// File > Preferences, kept in %APPDATA%\Firmament\preferences.txt ("key value" lines)
+static struct Prefs { bool reopenLast = false; } prefs;   // reopenLast: the newest sky shown at the start (else an empty view)
+static bool showPrefs = false;
+static fs::path prefsFile() {
+    const char* ad = getenv("APPDATA");
+    const fs::path d = fs::u8path(ad ? ad : ".") / "Firmament";
+    std::error_code ec; fs::create_directories(d, ec);
+    return d / "preferences.txt";
+}
+static void loadPrefs() { std::ifstream f(prefsFile()); std::string k; int v; while (f >> k >> v) if (k == "reopenLast") prefs.reopenLast = v != 0; }
+static void savePrefs() { std::ofstream(prefsFile()) << "reopenLast " << (prefs.reopenLast ? 1 : 0) << "\n"; }
 static int tab = 0, forcedTab = -1;
 
 static void heading(const char* s) { ImGui::Spacing(); ImGui::PushStyleColor(ImGuiCol_Text, col4(C_PINK)); ImGui::TextUnformatted(s); ImGui::PopStyleColor(); }
@@ -647,6 +658,9 @@ static void frame() {
                 if (!p.empty() && Pano::load(p, im)) { Skybox s; s.path = p; s.seam = Pano::seamError(im); s.thumbImg = thumbOf(im); s.img = std::move(im); gallery.insert(gallery.begin(), std::move(s)); show(0); }
             }
             if (ImGui::MenuItem("Open the skies folder")) openInExplorer(outputDir());
+            if (ImGui::MenuItem("Open recent", nullptr, false, !gallery.empty() && current != 0)) { show(0); forcedTab = 0; }
+            ImGui::Separator();
+            if (ImGui::MenuItem("Preferences...")) showPrefs = true;
             ImGui::Separator();
             if (ImGui::MenuItem("Quit")) quit = true;
             ImGui::EndMenu();
@@ -689,6 +703,14 @@ static void frame() {
     { std::lock_guard<std::mutex> g(mtx); if (now() < toastUntil) ImGui::TextColored(col4(C_PINK), "%s", toast.c_str()); else ImGui::TextDisabled("Skies kept in %s", outputDir().c_str()); }
     ImGui::End();
     ImGui::PopStyleColor(); ImGui::PopStyleVar();
+    if (showPrefs) {
+        ImGui::SetNextWindowSize(ImVec2(440, 0), ImGuiCond_FirstUseEver);
+        if (ImGui::Begin("Preferences", &showPrefs, ImGuiWindowFlags_NoCollapse)) {
+            if (ImGui::Checkbox("Open the newest sky at the start", &prefs.reopenLast)) savePrefs();
+            tip("Off: Firmament starts on an empty view; your skies are in the Gallery and File > Open recent");
+        }
+        ImGui::End();
+    }
     if (showAbout) { ImGui::OpenPopup("about"); showAbout = false; }
     ImGui::SetNextWindowPos(ImGui::GetMainViewport()->GetCenter(), ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
@@ -789,12 +811,13 @@ int main(int argc, char** argv) {
     } else while (!ready) SDL_Delay(10);
     { std::vector<std::function<void()>> todo; { std::lock_guard<std::mutex> g(mtx); todo.swap(onMain); } for (auto& f : todo) f(); }
     Viewer::init();
+    loadPrefs();
     loadGallery();
     int already = -1;   // a file that's in the gallery: that one (it keeps what it was made from)
     for (size_t i = 0; i < gallery.size() && !file.empty(); ++i) { std::error_code e; if (fs::equivalent(fs::u8path(gallery[i].path), fs::u8path(file), e)) already = (int)i; }
     if (already >= 0) show(already);
     else if (!file.empty()) { Image im; if (Pano::load(file, im)) { Skybox s; s.path = file; s.seam = Pano::seamError(im); s.thumbImg = thumbOf(im); s.img = std::move(im); gallery.insert(gallery.begin(), std::move(s)); show(0); } }
-    else if (!gallery.empty() && tools) show(0);   // (it opens empty: the gallery holds your skies, you pick one)
+    else if (!gallery.empty() && (tools || prefs.reopenLast)) show(0);   // (else it opens empty: the gallery holds your skies, you pick one)
     if (!makeScene.empty()) { snprintf(scene, sizeof scene, "%s", makeScene.c_str()); makeSkybox(); }
     if (capture.empty()) { SDL_ShowWindow(window); SDL_MaximizeWindow(window); SDL_RaiseWindow(window); }
 
