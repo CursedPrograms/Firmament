@@ -184,6 +184,7 @@ static int upscaleModel = 0;                     // 0 photo, 1 anime
 
 struct Skybox {
     std::string path, prompt, scene; int style = 0; int64_t seed = 0; int steps = 0; float seam = 0;
+    std::string from;                            // the sky it was made from (seam repair, upscale): the wipe's before
     Image img;                                   // loaded when shown
     GLuint thumb = 0; Image thumbImg;
 };
@@ -226,6 +227,7 @@ static std::string slug(const std::string& s) {
 static void saveMeta(const Skybox& s) {
     std::ofstream o(fs::u8path(s.path + ".txt"));
     o << "scene " << s.scene << "\nstyle " << s.style << "\nseed " << s.seed << "\nsteps " << s.steps << "\nseam " << s.seam << "\nprompt " << s.prompt << "\n";
+    if (!s.from.empty()) o << "from " << s.from << "\n";
 }
 
 static Image thumbOf(const Image& a) { return Pano::resize(a, 320, 160); }
@@ -247,6 +249,7 @@ static void loadGallery() {
             const std::string k = line.substr(0, sp), v = line.substr(sp + 1);
             if (k == "scene") s.scene = v; else if (k == "prompt") s.prompt = v; else if (k == "seed") s.seed = atoll(v.c_str());
             else if (k == "style") s.style = atoi(v.c_str()); else if (k == "steps") s.steps = atoi(v.c_str()); else if (k == "seam") s.seam = (float)atof(v.c_str());
+            else if (k == "from") s.from = v;
         }
         gallery.push_back(std::move(s));
     }
@@ -268,12 +271,20 @@ static void show(int i) {
     Skybox& s = gallery[i];
     if (s.img.empty() && !Pano::load(s.path, s.img)) { say("Couldn't open " + s.path); return; }
     Viewer::setImage(&s.img);
+    static Image beforeImg;   // the sky it was made from, for the wipe
+    beforeImg = Image();
+    std::error_code ec;
+    if (!s.from.empty() && fs::exists(fs::u8path(s.from), ec)) {
+        for (const auto& g : gallery) if (g.path == s.from && !g.img.empty()) { beforeImg = g.img; break; }
+        if (beforeImg.empty()) Pano::load(s.from, beforeImg);
+    }
+    Viewer::setBefore(beforeImg.empty() ? nullptr : &beforeImg);
     SDL_SetWindowTitle(window, ("Firmament - " + fs::u8path(s.path).filename().u8string()).c_str());
 }
 
 // a finished picture becomes a skybox in the gallery (and on disk)
-static void addSkybox(Image img, const std::string& scn, int sty, int64_t seed, int steps, const std::string& prompt, const std::string& suffix) {
-    Skybox s;
+static void addSkybox(Image img, const std::string& scn, int sty, int64_t seed, int steps, const std::string& prompt, const std::string& suffix, const std::string& from = "") {
+    Skybox s; s.from = from;
     s.scene = scn; s.style = sty; s.seed = seed; s.steps = steps; s.prompt = prompt;
     s.seam = Pano::seamError(img);
     char stamp[32]; const time_t t = time(nullptr); tm lt{};
@@ -325,15 +336,15 @@ static void fixSeam() {
     Engine::Settings s = settings;
     s.prompt = c.prompt.empty() ? promptFor(c.scene, c.style) : c.prompt;
     s.wrap = false;   // a strip, not the whole round
-    const Image base = c.img; const std::string scn = c.scene; const int sty = c.style; const int64_t seed = c.seed; const float str = seamStrength; const int band = seamBand;
-    runJob([s, strip, mask, x0, base, scn, sty, seed, str, band] {
+    const Image base = c.img; const std::string src = c.path; const std::string scn = c.scene; const int sty = c.style; const int64_t seed = c.seed; const float str = seamStrength; const int band = seamBand;
+    runJob([s, strip, mask, x0, base, src, scn, sty, seed, str, band] {
         Image rep;
         const std::string err = Engine::repaint(models, s, strip, mask, str, rep, progress);
         if (!err.empty()) { say(err); return; }
         Image merged = Pano::seamMerge(base, rep, x0, band, Pano::SEAM_FEATHER);
-        post([merged = std::move(merged), scn, sty, seed, s]() mutable {
+        post([merged = std::move(merged), src, scn, sty, seed, s]() mutable {
             const float before = gallery.empty() ? 0 : gallery[current].seam;
-            addSkybox(std::move(merged), scn, sty, seed, s.steps, s.prompt, "_seam");
+            addSkybox(std::move(merged), scn, sty, seed, s.steps, s.prompt, "_seam", src);
             char m[128]; snprintf(m, sizeof m, "Seam repaired: %.1f before, %.1f now", before, gallery[0].seam);
             say(m);
         });
@@ -347,14 +358,14 @@ static void upscaleCurrent(int scale) {
     std::error_code ec;
     if (!fs::exists(fs::u8path(model), ec)) { say("The upscaler model is missing: get it in the Models tab"); return; }
     const Image padded = Pano::wrapPad(c.img, 64);   // the other edge on each side, so the upscale wraps without a seam
-    const std::string scn = c.scene, prompt = c.prompt; const int sty = c.style, steps = c.steps; const int64_t seed = c.seed;
-    runJob([model, padded, scale, scn, prompt, sty, steps, seed] {
+    const std::string scn = c.scene, prompt = c.prompt, src = c.path; const int sty = c.style, steps = c.steps; const int64_t seed = c.seed;
+    runJob([model, padded, scale, src, scn, prompt, sty, steps, seed] {
         Image big;
         const std::string err = Engine::upscale(model, padded, scale, big, progress);
         if (!err.empty()) { say(err); return; }
         Image out = Pano::unpad(big, 64 * scale);
-        post([out = std::move(out), scn, prompt, sty, steps, seed, scale]() mutable {
-            addSkybox(std::move(out), scn, sty, seed, steps, prompt, "_x" + std::to_string(scale));
+        post([out = std::move(out), src, scn, prompt, sty, steps, seed, scale]() mutable {
+            addSkybox(std::move(out), scn, sty, seed, steps, prompt, "_x" + std::to_string(scale), src);
             say("Upscaled " + std::to_string(scale) + "x");
         });
     });
@@ -523,6 +534,16 @@ static void viewTab(ImVec2 avail) {
     ImGui::Checkbox("Flat", &lk.flat); ImGui::SameLine();
     ImGui::SetNextItemWidth(160); ImGui::SliderFloat("##fov", &lk.fov, 20, 140, "field of view: %.0f\xc2\xb0"); ImGui::SameLine();
     if (ImGui::Button("Straight ahead")) { lk.yaw = 0; lk.pitch = 0; lk.fov = 90; }
+    if (Viewer::comparing()) {   // a repaired or upscaled sky: the one it came from, as Mimic's wipe (keys 1 2 3)
+        ImGui::SameLine(); ImGui::RadioButton("Before | after", &lk.compare, 0); tip("Drag the pink line: the sky it was made from on the left, this one on the right (1)");
+        ImGui::SameLine(); ImGui::RadioButton("After", &lk.compare, 1); tip("This sky only (2)");
+        ImGui::SameLine(); ImGui::RadioButton("Before", &lk.compare, 2); tip("The sky it was made from (3)");
+        if (!ImGui::GetIO().WantTextInput) {
+            if (ImGui::IsKeyPressed(ImGuiKey_1)) lk.compare = 0;
+            if (ImGui::IsKeyPressed(ImGuiKey_2)) lk.compare = 1;
+            if (ImGui::IsKeyPressed(ImGuiKey_3)) lk.compare = 2;
+        }
+    }
     ImGui::SameLine();
     if (ImGui::Button("Picture...") && current >= 0) {
         std::vector<unsigned char> px; int w, h; Viewer::readPixels(px, w, h);
@@ -537,7 +558,13 @@ static void viewTab(ImVec2 avail) {
         const char* m = models.missing().empty() ? "Describe a sky on the left (or pick a scene) and press Make the sky." : "First, the models: open the Models tab and press Get the models.";
         const ImVec2 ts = ImGui::CalcTextSize(m);
         ImGui::GetWindowDrawList()->AddText(ImVec2(a.x + (size.x - ts.x) / 2, a.y + size.y / 2), C_DIM, m);
-    } else ImGui::GetWindowDrawList()->AddText(ImVec2(a.x + 12, a.y + size.y - 26), C_DIM, "Drag to look round, wheel to zoom");
+    } else ImGui::GetWindowDrawList()->AddText(ImVec2(a.x + 12, a.y + size.y - 26), C_DIM, Viewer::comparing() && lk.compare == 0 ? "Drag the pink line to compare, elsewhere to look round" : "Drag to look round, wheel to zoom");
+    if (current >= 0 && Viewer::comparing()) {   // the labels, as in Mimic
+        ImDrawList* dl = ImGui::GetWindowDrawList();
+        auto label = [&](const char* t, float x) { const ImVec2 ts = ImGui::CalcTextSize(t); dl->AddRectFilled(ImVec2(x - 6, a.y + 10), ImVec2(x + ts.x + 6, a.y + 14 + ts.y), IM_COL32(20, 20, 20, 200), 4); dl->AddText(ImVec2(x, a.y + 12), IM_COL32(230, 230, 230, 255), t); };
+        if (lk.compare == 0) { label("Before", a.x + 14); label("After", a.x + size.x - 14 - ImGui::CalcTextSize("After").x); }
+        else label(lk.compare == 2 ? "Before" : "After", a.x + 14);
+    }
     (void)avail;
 }
 
@@ -763,8 +790,11 @@ int main(int argc, char** argv) {
     { std::vector<std::function<void()>> todo; { std::lock_guard<std::mutex> g(mtx); todo.swap(onMain); } for (auto& f : todo) f(); }
     Viewer::init();
     loadGallery();
-    if (!file.empty()) { Image im; if (Pano::load(file, im)) { Skybox s; s.path = file; s.seam = Pano::seamError(im); s.thumbImg = thumbOf(im); s.img = std::move(im); gallery.insert(gallery.begin(), std::move(s)); show(0); } }
-    else if (!gallery.empty()) show(0);
+    int already = -1;   // a file that's in the gallery: that one (it keeps what it was made from)
+    for (size_t i = 0; i < gallery.size() && !file.empty(); ++i) { std::error_code e; if (fs::equivalent(fs::u8path(gallery[i].path), fs::u8path(file), e)) already = (int)i; }
+    if (already >= 0) show(already);
+    else if (!file.empty()) { Image im; if (Pano::load(file, im)) { Skybox s; s.path = file; s.seam = Pano::seamError(im); s.thumbImg = thumbOf(im); s.img = std::move(im); gallery.insert(gallery.begin(), std::move(s)); show(0); } }
+    else if (!gallery.empty() && tools) show(0);   // (it opens empty: the gallery holds your skies, you pick one)
     if (!makeScene.empty()) { snprintf(scene, sizeof scene, "%s", makeScene.c_str()); makeSkybox(); }
     if (capture.empty()) { SDL_ShowWindow(window); SDL_MaximizeWindow(window); SDL_RaiseWindow(window); }
 

@@ -51,8 +51,22 @@ namespace Viewer {
 
 static Look lk;
 Look& look() { return lk; }
-static GLuint prog = 0, vao = 0, tex = 0, fbo = 0, fboTex = 0;
+static GLuint prog = 0, vao = 0, tex = 0, fbo = 0, fboTex = 0, beforeTex = 0;
 static int fbW = 0, fbH = 0, imW = 0, imH = 0;
+static bool hasBefore = false, draggingWipe = false;
+static void upload(GLuint& t, const Image* im) {
+    if (!t) glGenTextures(1, &t);
+    glBindTexture(GL_TEXTURE_2D, t);
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, im->w, im->h, 0, GL_RGB, GL_UNSIGNED_BYTE, im->px.data());
+    glGenerateMipmap_(GL_TEXTURE_2D);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);          // round the back, no seam
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+}
+void setBefore(const Image* im) { hasBefore = im && !im->empty(); if (hasBefore) upload(beforeTex, im); }
+bool comparing() { return hasBefore && imW; }
 
 bool init() {
 #define L(name) name##_ = (PFN_##name)SDL_GL_GetProcAddress(#name); if (!name##_) return false;
@@ -65,7 +79,7 @@ out vec2 q;
 void main() { vec2 p = vec2(gl_VertexID == 1 ? 3.0 : -1.0, gl_VertexID == 2 ? 3.0 : -1.0); q = p; gl_Position = vec4(p, 0, 1); })";
     const char* fs = R"(#version 330
 in vec2 q; out vec4 o;
-uniform sampler2D pano; uniform float yaw, pitch, fov, aspect; uniform int flatMode;
+uniform sampler2D pano, before; uniform float yaw, pitch, fov, aspect, wipe, widthPx; uniform int flatMode, useBefore;
 const float PI = 3.14159265;
 void main() {
   vec2 uv;
@@ -88,7 +102,12 @@ void main() {
   }
   vec2 gx = dFdx(uv), gy = dFdy(uv);
   gx.x -= round(gx.x); gy.x -= round(gy.x);   // no blurred line where u jumps from 1 back to 0
-  o = vec4(textureGrad(pano, uv, gx, gy).rgb, 1);
+  // the wipe: before left of the line, after right of it (the same place in both: one look round, two skies)
+  float sx = q.x * 0.5 + 0.5;
+  bool b = useBefore == 2 || (useBefore == 1 && sx < wipe);
+  o = vec4((b ? textureGrad(before, uv, gx, gy) : textureGrad(pano, uv, gx, gy)).rgb, 1);
+  if (useBefore == 1 && abs(sx - wipe) * widthPx < 1.0) o = vec4(1.0, 0.36, 0.67, 1);
+
 })";
     auto sh = [](GLenum t, const char* src) { GLuint s = glCreateShader_(t); glShaderSource_(s, 1, &src, nullptr); glCompileShader_(s); return s; };
     prog = glCreateProgram_();
@@ -100,22 +119,22 @@ void main() {
 
 void setImage(const Image* im) {
     if (!im || im->empty()) { imW = imH = 0; return; }
-    if (!tex) glGenTextures(1, &tex);
-    glBindTexture(GL_TEXTURE_2D, tex);
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, im->w, im->h, 0, GL_RGB, GL_UNSIGNED_BYTE, im->px.data());
-    glGenerateMipmap_(GL_TEXTURE_2D);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);          // round the back, no seam
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    upload(tex, im);
     imW = im->w; imH = im->h;
 }
 
 unsigned render(int w, int h, bool hovered) {
     if (w < 8 || h < 8) return fboTex;
     ImGuiIO& io = ImGui::GetIO();
-    if (hovered && !lk.flat) {
+    // the wipe's line: a drag that starts on it moves it (on the flat map, a drag anywhere does); else the drag looks round
+    const bool wiping = comparing() && lk.compare == 0;
+    const float x0 = ImGui::GetItemRectMin().x;   // (the view's invisible button, just before this)
+    if (wiping && hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+        draggingWipe = lk.flat || std::fabs(io.MousePos.x - (x0 + lk.wipe * w)) < 14;
+    if (!ImGui::IsMouseDown(ImGuiMouseButton_Left) || !wiping) draggingWipe = false;
+    if (draggingWipe) lk.wipe = std::clamp((io.MousePos.x - x0) / w, 0.0f, 1.0f);
+    if (wiping && hovered && std::fabs(io.MousePos.x - (x0 + lk.wipe * w)) < 14) ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
+    if (hovered && !lk.flat && !draggingWipe) {
         if (ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {
             const float k = lk.fov / 90.0f * 0.005f;
             lk.yaw += io.MouseDelta.x * k; lk.pitch = std::clamp(lk.pitch + io.MouseDelta.y * k, -1.5f, 1.5f);
@@ -141,6 +160,13 @@ unsigned render(int w, int h, bool hovered) {
         glActiveTexture_(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, tex);
         glUniform1i_(glGetUniformLocation_(prog, "pano"), 0);
+        glActiveTexture_(GL_TEXTURE0 + 1);
+        glBindTexture(GL_TEXTURE_2D, comparing() ? beforeTex : tex);
+        glUniform1i_(glGetUniformLocation_(prog, "before"), 1);
+        glActiveTexture_(GL_TEXTURE0);
+        glUniform1i_(glGetUniformLocation_(prog, "useBefore"), comparing() ? (lk.compare == 0 ? 1 : lk.compare == 2 ? 2 : 0) : 0);
+        glUniform1f_(glGetUniformLocation_(prog, "wipe"), lk.wipe);
+        glUniform1f_(glGetUniformLocation_(prog, "widthPx"), (float)w);
         glUniform1f_(glGetUniformLocation_(prog, "yaw"), lk.yaw);
         glUniform1f_(glGetUniformLocation_(prog, "pitch"), lk.pitch);
         glUniform1f_(glGetUniformLocation_(prog, "fov"), lk.fov);
