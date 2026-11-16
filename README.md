@@ -59,6 +59,17 @@ and the original **web app** on ComfyUI that opens on your phone too. Part of
 - **12 languages:** English, Japanese, Chinese, Spanish, Korean, French, German, Russian, Serbian, Afrikaans, Yucatec
   Maya and Pennsylvania Dutch (Deitsch).
 
+## Minimum requirements
+
+| | |
+| --- | --- |
+| **System** | Windows 10 or 11, 64-bit |
+| **Processor** | any 64-bit processor |
+| **Memory** | 16 GB RAM (32 GB recommended), with a page file of 16 GB or more |
+| **Graphics** | an NVIDIA card with 6 GB or more (CUDA), e.g. an RTX 2060 |
+| **Disk** | about 13 GB: 1 GB for the app and 12 GB for the models |
+| **Web app** | the same card, plus Python 3.12 and ComfyUI (set up for you) |
+
 ## The desktop app (C++)
 
 ![Firmament's desktop app: the prompt, the styles and a desert skybox in its 360 view](images/app.jpg)
