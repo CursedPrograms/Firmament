@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(Firmament VERSION 2.0.0 LANGUAGES C CXX)
+project(Firmament VERSION 2.1.0 LANGUAGES C CXX)
 # Firmament: 360° skyboxes from a prompt, made on your own graphics card. Part of Atelier.
 # The painting is stable-diffusion.cpp (MIT, ggml, CUDA): build it with -DSD_BUILD_SHARED_LIBS=ON and point SDCPP at
 # its folder (see build.bat). stable-diffusion.dll is delay-loaded, so Firmament opens on any PC and says what it needs.
