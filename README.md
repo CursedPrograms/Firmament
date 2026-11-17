@@ -72,8 +72,6 @@ and the original **web app** on ComfyUI that opens on your phone too. Part of
 
 ## The desktop app (C++)
 
-![Firmament's desktop app: the prompt, the styles and a desert skybox in its 360 view](images/app.jpg)
-
 Download **Firmament-win64.zip** from [Releases](https://github.com/CursedPrograms/Firmament/releases), unzip it anywhere
 and run `Firmament.exe` (or `install.bat` for Start menu and Desktop shortcuts), or get it through the
 [Atelier launcher](https://github.com/CursedPrograms/Atelier). The first time, open the **Models** tab and press
